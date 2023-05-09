@@ -11,4 +11,4 @@ Due to the limitation of the size of uploaded files, the pretrained weights of t
 * pycocotools 2.0.6
 
 # Training and Testing
-To train the network, please set the right directory to save and load the trained models and simply run main.py.
+To train the network, please simply run main.py. Since we implemented two different Faster R-CNN networks bases on ResNet and MobileNetv3 respectively, please set the variable "ResNet_available" in main.py to evaluate different networks.
