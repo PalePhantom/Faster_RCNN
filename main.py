@@ -126,7 +126,7 @@ def bbox_to_image(img, bbox, label, filename):
     # plt.show()
 
 
-def test(dataset_loader, model, dev, e):
+def test(dataset_loader, model, dev, e, ResNet):
     avg_IOU = 0
     avg_accuracy = 0
     avg_score = 0
@@ -135,7 +135,10 @@ def test(dataset_loader, model, dev, e):
 
     with torch.no_grad():
         image_num = list(random.sample(range(72), 5))
-        path = './Output/Mobilev3_Epoch' + str(e)
+        if ResNet:
+            path = './Output/ResNet_Epoch' + str(e)
+        else:
+            path = './Output/Mobilev3_Epoch' + str(e)
         os.mkdir(path)
         k = 0
         for i, data in enumerate(dataset_loader):
@@ -148,7 +151,10 @@ def test(dataset_loader, model, dev, e):
             scores = test_output['scores'].cpu().detach().numpy()
             obj_index = np.argwhere(scores > 0.8).squeeze(axis=1).tolist()
             if i in image_num and len(boxes) > 0:
-                show_image(images[0], targets, boxes[0], labels[0], "/Mobilev3_Epoch" + str(e) + "/Image" + str(i))
+                if ResNet:
+                    show_image(images[0], targets, boxes[0], labels[0], "/ResNet_Epoch" + str(e) + "/Image" + str(i))
+                else:
+                    show_image(images[0], targets, boxes[0], labels[0], "/Mobilev3_Epoch" + str(e) + "/Image" + str(i))
             if len(boxes) > 0:
                 k += 1
                 avg_IOU += evaluate_IOU(targets, boxes[0])
@@ -182,8 +188,11 @@ class ASLDataset(Dataset):
     def __len__(self):
         return len(self.images)
 
-
-weight_path = 'Faster_RCNN.tar'
+ResNet_available = True
+if ResNet_available:
+    weight_path = 'Faster_RCNN_ResNet.tar'
+else:
+    weight_path = 'Faster_RCNN_Mobile3.tar'
 
 train_set = ASLDataset(train_data, train_label)
 test_set = ASLDataset(test_data, test_label)
@@ -193,8 +202,11 @@ test_loader = torch.utils.data.DataLoader(test_set, batch_size=1, shuffle=False)
 test_image = test_loader.dataset[0]
 bbox_to_image(test_image[0], test_image[1]["boxes"], test_image[1]["labels"], "Test.png")
 
-FasterRCNN_Net = detection.fasterrcnn_resnet50_fpn(weights='DEFAULT')
-# FasterRCNN_Net = detection.fasterrcnn_mobilenet_v3_large_fpn(weights='DEFAULT')
+
+if ResNet_available:
+    FasterRCNN_Net = detection.fasterrcnn_resnet50_fpn(weights='DEFAULT')
+else 
+    FasterRCNN_Net = detection.fasterrcnn_mobilenet_v3_large_fpn(weights='DEFAULT')
 in_features = FasterRCNN_Net.roi_heads.box_predictor.cls_score.in_features
 FasterRCNN_Net.roi_heads.box_predictor = FastRCNNPredictor(in_features, 26)
 initepoch = 0
@@ -215,14 +227,14 @@ optimizer = torch.optim.SGD(params, lr=0.0003,
 # and a learning rate scheduler
 lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=1, T_mult=2)
 # test(test_loader, FasterRCNN_Net, device)
-# for epoch in range(initepoch, 50):
-#     # train for one epoch, printing every 10 iterations
-#     train_one_epoch(FasterRCNN_Net, optimizer, train_loader, device, epoch, print_freq=50)
-#     torch.save({'epoch': epoch,
-#                 'model_state_dict': FasterRCNN_Net.state_dict()
-#                 }, weight_path)
-#     # update the learning rate
-#     lr_scheduler.step()
-#
-#     if epoch % 5 == 4:
-#         test(test_loader, FasterRCNN_Net, device, epoch)
+for epoch in range(initepoch, 50):
+    # train for one epoch, printing every 10 iterations
+    train_one_epoch(FasterRCNN_Net, optimizer, train_loader, device, epoch, print_freq=50)
+    torch.save({'epoch': epoch,
+                'model_state_dict': FasterRCNN_Net.state_dict()
+                }, weight_path)
+    # update the learning rate
+    lr_scheduler.step()
+
+    if epoch % 5 == 4:
+        test(test_loader, FasterRCNN_Net, device, epoch, ResNet_available)
