@@ -7,3 +7,4 @@ As the final project of Deep Learning, this is a Faster R-CNN that can locate th
 * PyTorch-cuda 11.7
 * CUDA 12.1
 * Torchvision 0.15.0
+* pycocotools 2.0.6
